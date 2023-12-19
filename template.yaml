@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  MyS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: japo-cloudformation-bucket
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+  ManualBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AWS::StackName}-manualbuc-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: alias/aws/s3
+      PublicAccessBlockConfiguration:
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  ManualBucketBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ManualBucket
+      PolicyDocument:
+        Id: RequireEncryptionInTransit
+        Version: '2012-10-17'
+        Statement:
+          - Principal: '*'
+            Action: '*'
+            Effect: Deny
+            Resource:
+              - !GetAtt ManualBucket.Arn
+              - !Sub ${ManualBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'

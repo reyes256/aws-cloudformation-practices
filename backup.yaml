@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS Backup daily CloudFormation configuration
+Resources:
+  s3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: japo-cloudformation-bucket
+  BackupPlan:
+    Type: AWS::Backup::BackupPlan
+    Properties:
+      BackupPlan:
+        BackupPlanName: default
+        BackupPlanRule:
+          - RuleName: daily-backups
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: cron(0 5 ? * * *)
+            StartWindowMinutes: 60
+            Lifecycle:
+              DeleteAfterDays: 60
+  BackupVault:
+    Type: AWS::Backup::BackupVault
+    Properties:
+      BackupVaultName: default
+      EncryptionKeyArn: !GetAtt BackupVaultKey.Arn
+  BackupVaultKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Encryption key for daily
+      Enabled: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action:
+              - kms:*
+            Resource: '*'
+  BackupVaultKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/cmk/backup
+      TargetKeyId: !Ref BackupVaultKey
+  BackupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - backup.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
+  BackupSelection:
+    Type: null
+    Properties:
+      BackupSelection:
+        SelectionName: daily-backup-tag
+        IamRoleArn: !GetAtt BackupRole.Arn
+        ListOfTags:
+          - ConditionType: STRINGEQUALS
+            ConditionKey: backup
+            ConditionValue: daily
+        Resources:
+          - !GetAtt s3Bucket.Arn
+      BackupPlanId: !Ref BackupPlan
