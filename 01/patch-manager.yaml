@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Create EC2 instance with SSH access"
+Parameters:
+  KeyName:
+    Type: String
+    Description: "Key name to SSH to VM's. Leave blank to not associate a key."
+    Default: "llavenuda"
+Resources:
+  MyEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0f599bbc07afc299a
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref WebAppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: MyEC2Instance
+  WebAppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join ["-", [webapp-security-group, dev]]
+      GroupDescription: "Allow HTTP/HTTPS and SSH inbound and outbound traffic"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+  myPatchBaseline:
+    Type: AWS::SSM::PatchBaseline
+    Properties:
+      Name: myPatchBaseline
+      Description: Baseline containing all updates approved for Windows instances
+      OperatingSystem: AMAZON_LINUX_2 ##
+      PatchGroups: ##
+        - myPatchGroup
+      ApprovalRules: # Obligatorio
+        PatchRules:
+          - ApproveAfterDays: "7"
+            PatchFilterGroup:
+              PatchFilters:
+                - Key: PRODUCT
+                  Values:
+                    - "*"
+                - Key: CLASSIFICATION
+                  Values: []
+                - Key: MSRC_SEVERITY
+                  Values: []
+                - Key: PATCH_SET
+                  Values:
+                    - OS
