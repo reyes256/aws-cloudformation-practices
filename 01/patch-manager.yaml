@@ -13,24 +13,16 @@ Resources:
       InstanceType: t2.micro
       KeyName: !Ref KeyName
       SecurityGroupIds:
-        - !Ref WebAppSecurityGroup
+        - !Ref SSHSecurityGroup
       Tags:
         - Key: Name
           Value: MyEC2Instance
-  WebAppSecurityGroup:
+  SSHSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Join ["-", [webapp-security-group, dev]]
-      GroupDescription: "Allow HTTP/HTTPS and SSH inbound and outbound traffic"
+      GroupName: !Join ["-", [ssh-security-group, dev]]
+      GroupDescription: "Allow SSH traffic"
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
@@ -38,8 +30,8 @@ Resources:
   myPatchBaseline:
     Type: AWS::SSM::PatchBaseline
     Properties:
-      Name: myPatchBaseline
-      Description: Baseline containing all updates approved for Windows instances
+      Name: SecurityUpdates
+      Description: Baseline for only patching security updates
       OperatingSystem: AMAZON_LINUX_2 ##
       PatchGroups: ##
         - myPatchGroup
@@ -48,13 +40,10 @@ Resources:
           - ApproveAfterDays: "7"
             PatchFilterGroup:
               PatchFilters:
-                - Key: PRODUCT
+                - Key: CLASSIFICATION # Solo
                   Values:
-                    - "*"
-                - Key: CLASSIFICATION
-                  Values: []
-                - Key: MSRC_SEVERITY
-                  Values: []
-                - Key: PATCH_SET
+                    - Security
+                - Key: SEVERITY
                   Values:
-                    - OS
+                    - Critical
+                    - Important
